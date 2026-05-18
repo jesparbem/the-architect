@@ -6,14 +6,11 @@ from dataclasses import asdict
 from analyzer import TechnicalAnalyzer, Signal
 from fetcher import PriceFetcher
 from portfolio import Portfolio
+from config import trading_config
 
 logger = logging.getLogger(__name__)
 
-# Risk management parameters
-MAX_POSITION_SIZE_PCT = 0.30    # Max 30% of portfolio per position
-MIN_TRADE_USD = 2.0              # Minimum trade size
-MAX_POSITIONS = 5                # Max concurrent positions
-MIN_SIGNAL_STRENGTH = 62         # Minimum signal strength to buy
+MIN_TRADE_USD = 2.0
 
 class TradingAgent:
     def __init__(self, portfolio: Portfolio, fetcher: PriceFetcher, analyzer: TechnicalAnalyzer):
@@ -49,14 +46,11 @@ class TradingAgent:
         return (time.time() - last) > cooldown_seconds
 
     def _calculate_position_size(self, portfolio_value: float, signal_strength: float) -> float:
-        """Calculate how much USD to invest based on signal strength and portfolio value."""
-        # Kelly-inspired sizing: stronger signal = larger position
-        base_pct = 0.15  # 15% base
-        strength_bonus = ((signal_strength - MIN_SIGNAL_STRENGTH) / (100 - MIN_SIGNAL_STRENGTH)) * 0.15
-        position_pct = min(base_pct + strength_bonus, MAX_POSITION_SIZE_PCT)
-
-        amount = portfolio_value * position_pct
-        return max(amount, MIN_TRADE_USD)
+        min_strength = trading_config.min_signal_strength
+        base_pct = 0.15
+        strength_bonus = ((signal_strength - min_strength) / max(100 - min_strength, 1)) * 0.15
+        position_pct = min(base_pct + strength_bonus, trading_config.max_position_size_pct)
+        return max(portfolio_value * position_pct, MIN_TRADE_USD)
 
     async def _update_market_data(self):
         """Fetch fresh market data."""
@@ -139,14 +133,14 @@ class TradingAgent:
 
     async def _execute_buys(self, prices: Dict[str, float]):
         """Buy top opportunities."""
-        if len(self.portfolio.positions) >= MAX_POSITIONS:
-            self._log(f"Max positions ({MAX_POSITIONS}) reached, skipping buys", action="SKIP")
+        if len(self.portfolio.positions) >= trading_config.max_positions:
+            self._log(f"Max positions ({trading_config.max_positions}) reached, skipping buys", action="SKIP")
             return
 
         buy_candidates = [
             s for s in self.current_signals
             if s.signal in ('BUY', 'STRONG_BUY')
-            and s.strength >= MIN_SIGNAL_STRENGTH
+            and s.strength >= trading_config.min_signal_strength
             and s.coin_id not in self.portfolio.positions
             and self._cooldown_ok(s.coin_id)
         ]
@@ -175,9 +169,10 @@ class TradingAgent:
 
             current_price = prices.get(signal.coin_id, signal.current_price)
 
-            # Set tighter stop loss for STRONG_BUY, wider for normal BUY
-            sl_pct = 0.05 if signal.signal == 'STRONG_BUY' else 0.07
-            tp_pct = 0.25 if signal.signal == 'STRONG_BUY' else 0.15
+            base_sl = trading_config.default_stop_loss_pct
+            base_tp = trading_config.default_take_profit_pct
+            sl_pct = max(base_sl - 0.02, 0.02) if signal.signal == 'STRONG_BUY' else base_sl
+            tp_pct = base_tp + 0.05 if signal.signal == 'STRONG_BUY' else base_tp
 
             trade = self.portfolio.buy(
                 coin_id=signal.coin_id,
@@ -201,8 +196,11 @@ class TradingAgent:
 
     async def run_cycle(self):
         """Run one complete trading cycle."""
+        if trading_config.is_paused:
+            return
+
         self.cycle_count += 1
-        self.day_count = max(1, (self.cycle_count // 48) + 1)  # ~48 cycles per day at 30min intervals
+        self.day_count = max(1, (self.cycle_count // 48) + 1)
 
         self._log(f"Trading cycle #{self.cycle_count} (Day {self.day_count})", action="CYCLE")
 
@@ -243,8 +241,10 @@ class TradingAgent:
         prices = self.fetcher.get_all_prices()
         return {
             'is_running': self.is_running,
+            'is_paused': trading_config.is_paused,
             'cycle_count': self.cycle_count,
             'day_count': self.day_count,
+            'trading_config': trading_config.to_dict(),
             'portfolio': self.portfolio.to_dict(prices),
             'agent_log': self.agent_log[-50:],
             'signals': [

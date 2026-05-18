@@ -3,6 +3,8 @@ import PriceTable from './PriceTable.jsx'
 import TradeHistory from './TradeHistory.jsx'
 import AgentLog from './AgentLog.jsx'
 import PerformanceChart from './PerformanceChart.jsx'
+import ChatPanel from './ChatPanel.jsx'
+import AgentsPanel from './AgentsPanel.jsx'
 
 function StatusDot({ connected }) {
   return (
@@ -20,7 +22,7 @@ export default function Dashboard({ state, connected, lastUpdate, onReset }) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="text-6xl mb-4">&#x1F916;</div>
+          <div className="text-6xl mb-4">🤖</div>
           <div className="text-green-400 text-xl animate-pulse">Initializing Trading Engine...</div>
           <div className="text-gray-500 text-sm mt-2">Connecting to market data</div>
         </div>
@@ -28,7 +30,7 @@ export default function Dashboard({ state, connected, lastUpdate, onReset }) {
     )
   }
 
-  const { portfolio, signals, agent_log, cycle_count, day_count, market_data } = state
+  const { portfolio, signals, agent_log, cycle_count, day_count, agents = [], trading_config, is_paused } = state
 
   return (
     <div className="max-w-[1800px] mx-auto p-4">
@@ -36,14 +38,19 @@ export default function Dashboard({ state, connected, lastUpdate, onReset }) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <span>&#x1F916;</span>
+            <span>🤖</span>
             <span>Crypto AI Trader</span>
             <span className="text-xs bg-green-900/50 text-green-400 px-2 py-1 rounded border border-green-800">
               PAPER TRADING
             </span>
+            {is_paused && (
+              <span className="text-xs bg-yellow-900/50 text-yellow-400 px-2 py-1 rounded border border-yellow-800">
+                BOT PAUSADO
+              </span>
+            )}
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            Day {day_count} &middot; Cycle #{cycle_count} &middot; Data: CoinGecko Live
+            Day {day_count} · Cycle #{cycle_count} · Mode: <span className="text-white">{trading_config?.mode || 'balanced'}</span> · Data: CoinGecko Live
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -62,23 +69,23 @@ export default function Dashboard({ state, connected, lastUpdate, onReset }) {
         </div>
       </div>
 
-      {/* Portfolio Cards Row */}
+      {/* Portfolio Cards */}
       <PortfolioCard portfolio={portfolio} />
 
       {/* Main Grid */}
       <div className="grid grid-cols-12 gap-4 mt-4">
 
-        {/* Performance Chart - spans 8 cols */}
+        {/* Performance Chart */}
         <div className="col-span-12 lg:col-span-8">
           <PerformanceChart history={portfolio?.portfolio_history || []} />
         </div>
 
-        {/* Agent Log - spans 4 cols */}
+        {/* Agent Log */}
         <div className="col-span-12 lg:col-span-4">
           <AgentLog logs={agent_log || []} />
         </div>
 
-        {/* Market Signals Table - spans 7 cols */}
+        {/* Market Signals */}
         <div className="col-span-12 lg:col-span-7">
           <PriceTable
             signals={signals || []}
@@ -86,10 +93,21 @@ export default function Dashboard({ state, connected, lastUpdate, onReset }) {
           />
         </div>
 
-        {/* Trade History - spans 5 cols */}
+        {/* Trade History */}
         <div className="col-span-12 lg:col-span-5">
           <TradeHistory trades={portfolio?.trades || []} />
         </div>
+
+        {/* Agents Status Panel */}
+        <div className="col-span-12">
+          <AgentsPanel agents={agents} />
+        </div>
+
+        {/* Chat with ARIA */}
+        <div className="col-span-12">
+          <ChatPanel state={state} />
+        </div>
+
       </div>
     </div>
   )
