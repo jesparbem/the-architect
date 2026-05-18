@@ -2,81 +2,94 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 const STARTING = 50.0
 
-function formatTime(ts) {
+function fmt(ts) {
   return new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null
-  const d = payload[0].payload
+  const d   = payload[0].payload
   const pnl = d.total_value - STARTING
   const pct = ((d.total_value / STARTING) - 1) * 100
+  const isUp = pnl >= 0
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 text-xs">
-      <div className="text-gray-400">{formatTime(d.timestamp)}</div>
-      <div className="text-white font-bold text-base">${d.total_value.toFixed(2)}</div>
-      <div className={pnl >= 0 ? 'text-green-400' : 'text-red-400'}>
-        {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} ({pct.toFixed(2)}%)
+    <div className="card glass px-4 py-3 text-xs"
+         style={{ minWidth: '150px', boxShadow: isUp ? '0 4px 20px rgba(0,255,136,0.18)' : '0 4px 20px rgba(255,77,109,0.18)' }}>
+      <div className="font-mono text-xl font-bold mb-1" style={{ color: isUp ? '#00ff88' : '#ff4d6d' }}>
+        ${d.total_value.toFixed(2)}
       </div>
+      <div className="font-mono" style={{ color: isUp ? '#00ff88' : '#ff4d6d' }}>
+        {isUp ? '+' : ''}${pnl.toFixed(2)} · {isUp ? '+' : ''}{pct.toFixed(2)}%
+      </div>
+      <div style={{ color: 'var(--muted)', marginTop: '4px' }}>{fmt(d.timestamp)}</div>
     </div>
   )
 }
 
 export default function PerformanceChart({ history }) {
-  const data = history.map(h => ({
-    ...h,
-    total_value: parseFloat(h.total_value.toFixed(4))
-  }))
-
-  const currentValue = data.length > 0 ? data[data.length - 1].total_value : STARTING
-  const minVal = data.length > 0 ? Math.min(...data.map(d => d.total_value)) : STARTING - 1
-  const maxVal = data.length > 0 ? Math.max(...data.map(d => d.total_value)) : STARTING + 1
-  const padding = (maxVal - minVal) * 0.1
-
-  const isPositive = currentValue >= STARTING
+  const data  = history.map(h => ({ ...h, total_value: +h.total_value.toFixed(4) }))
+  const cur   = data.length ? data[data.length - 1].total_value : STARTING
+  const isPos = cur >= STARTING
+  const pnl   = cur - STARTING
+  const pct   = ((cur / STARTING) - 1) * 100
+  const color = isPos ? '#00ff88' : '#ff4d6d'
+  const minV  = data.length ? Math.min(...data.map(d => d.total_value)) : STARTING - 1
+  const maxV  = data.length ? Math.max(...data.map(d => d.total_value)) : STARTING + 1
+  const pad   = Math.max((maxV - minV) * 0.15, 0.5)
 
   return (
-    <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-4 h-72">
-      <div className="flex justify-between items-start mb-4">
+    <div className="card p-5" style={{ height: '300px' }}>
+      <div className="flex items-start justify-between mb-4">
         <div>
-          <h2 className="text-gray-400 text-sm uppercase tracking-wider">Portfolio Performance</h2>
-          <div className={`text-3xl font-bold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-            ${currentValue.toFixed(2)}
+          <span className="section-label">Portfolio Performance</span>
+          <div className="font-mono text-3xl font-black mt-1 leading-none"
+               style={{ color, textShadow: isPos ? '0 0 24px rgba(0,255,136,0.4)' : '0 0 24px rgba(255,77,109,0.4)' }}>
+            ${cur.toFixed(2)}
           </div>
         </div>
         <div className="text-right">
-          <div className={`text-sm ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-            {isPositive ? '&#x25B2;' : '&#x25BC;'} {Math.abs(((currentValue / STARTING) - 1) * 100).toFixed(2)}%
+          <div className="font-mono text-base font-bold" style={{ color }}>
+            {isPos ? '▲' : '▼'} {Math.abs(pct).toFixed(2)}%
           </div>
-          <div className="text-gray-600 text-xs">from $50.00</div>
+          <div className="font-mono text-sm" style={{ color }}>
+            {isPos ? '+' : ''}${pnl.toFixed(2)}
+          </div>
+          <div className="section-label mt-1">from $50.00</div>
         </div>
       </div>
 
       {data.length < 2 ? (
-        <div className="flex items-center justify-center h-32 text-gray-600 text-sm">
-          Waiting for first trading cycle...
+        <div className="flex items-center justify-center h-36 gap-2.5">
+          <div className="live-dot" />
+          <span className="text-sm" style={{ color: 'var(--muted)' }}>
+            Waiting for first trading cycle…
+          </span>
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height="75%">
-          <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height="72%">
+          <AreaChart data={data} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
             <defs>
-              <linearGradient id="valueGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={isPositive ? '#00FF88' : '#FF4444'} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={isPositive ? '#00FF88' : '#FF4444'} stopOpacity={0} />
+              <linearGradient id="perfGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor={color} stopOpacity={0.28} />
+                <stop offset="75%" stopColor={color} stopOpacity={0.03} />
+                <stop offset="95%" stopColor={color} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-            <XAxis dataKey="timestamp" tickFormatter={formatTime} stroke="#374151" tick={{ fontSize: 10, fill: '#6b7280' }} />
-            <YAxis stroke="#374151" tick={{ fontSize: 10, fill: '#6b7280' }} domain={[minVal - padding, maxVal + padding]} />
-            <Tooltip content={<CustomTooltip />} />
-            <ReferenceLine y={STARTING} stroke="#4b5563" strokeDasharray="4 4" label={{ value: '$50', fill: '#6b7280', fontSize: 10 }} />
-            <Area
-              type="monotone"
-              dataKey="total_value"
-              stroke={isPositive ? '#00FF88' : '#FF4444'}
-              strokeWidth={2}
-              fill="url(#valueGrad)"
-            />
+            <CartesianGrid strokeDasharray="2 6" stroke="rgba(255,255,255,0.04)" vertical={false} />
+            <XAxis dataKey="timestamp" tickFormatter={fmt} stroke="transparent"
+                   tick={{ fontSize: 10, fill: '#475569', fontFamily: 'JetBrains Mono' }} />
+            <YAxis stroke="transparent"
+                   tick={{ fontSize: 10, fill: '#475569', fontFamily: 'JetBrains Mono' }}
+                   domain={[minV - pad, maxV + pad]}
+                   tickFormatter={v => `$${v.toFixed(1)}`} />
+            <Tooltip content={<CustomTooltip />}
+                     cursor={{ stroke: color, strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.5 }} />
+            <ReferenceLine y={STARTING} stroke="rgba(255,255,255,0.1)" strokeDasharray="6 4"
+                           label={{ value: '$50', fill: '#475569', fontSize: 10, fontFamily: 'JetBrains Mono' }} />
+            <Area type="monotone" dataKey="total_value"
+                  stroke={color} strokeWidth={2.5}
+                  fill="url(#perfGrad)" dot={false}
+                  activeDot={{ r: 5, fill: color, strokeWidth: 0, filter: `drop-shadow(0 0 6px ${color})` }} />
           </AreaChart>
         </ResponsiveContainer>
       )}

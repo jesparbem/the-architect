@@ -6,14 +6,17 @@ import PerformanceChart from './PerformanceChart.jsx'
 import ChatPanel from './ChatPanel.jsx'
 import AgentsPanel from './AgentsPanel.jsx'
 
-function StatusDot({ connected }) {
+function LiveBadge({ connected }) {
   return (
-    <span className="flex items-center gap-2">
-      <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-400 pulse-dot' : 'bg-red-400'}`} />
-      <span className={`text-xs ${connected ? 'text-green-400' : 'text-red-400'}`}>
-        {connected ? 'LIVE' : 'RECONNECTING'}
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full"
+         style={{ background: connected ? 'rgba(0,255,136,0.08)' : 'rgba(255,77,109,0.08)',
+                  border: `1px solid ${connected ? 'rgba(0,255,136,0.25)' : 'rgba(255,77,109,0.25)'}` }}>
+      <span className={connected ? 'live-dot' : 'pulse-dot w-2 h-2 rounded-full bg-red-500'} />
+      <span className="text-xs font-semibold tracking-widest"
+            style={{ color: connected ? '#00ff88' : '#ff4d6d' }}>
+        {connected ? 'LIVE' : 'OFFLINE'}
       </span>
-    </span>
+    </div>
   )
 }
 
@@ -21,89 +24,115 @@ export default function Dashboard({ state, connected, lastUpdate, onReset }) {
   if (!state) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-6xl mb-4">🤖</div>
-          <div className="text-green-400 text-xl animate-pulse">Initializing Trading Engine...</div>
-          <div className="text-gray-500 text-sm mt-2">Connecting to market data</div>
+        <div className="text-center animate-fade-in">
+          <div className="text-7xl mb-6" style={{ filter: 'drop-shadow(0 0 30px rgba(56,189,248,0.4))' }}>🤖</div>
+          <div className="text-xl font-semibold mb-2" style={{ color: '#38bdf8' }}>
+            Initializing Trading Engine
+          </div>
+          <div className="flex justify-center gap-1 mt-4">
+            {[0,1,2].map(i => (
+              <div key={i} className="w-2 h-2 rounded-full bg-blue-400"
+                   style={{ animation: `simplePulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />
+            ))}
+          </div>
         </div>
       </div>
     )
   }
 
   const { portfolio, signals, agent_log, cycle_count, day_count, agents = [], trading_config, is_paused } = state
+  const pnl = portfolio?.total_pnl || 0
+  const pnlPct = portfolio?.total_pnl_pct || 0
+  const isPos = pnl >= 0
+  const modeColors = { conservative: '#38bdf8', balanced: '#fbbf24', aggressive: '#ff4d6d' }
+  const mode = trading_config?.mode || 'balanced'
 
   return (
-    <div className="max-w-[1800px] mx-auto p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <span>🤖</span>
-            <span>Crypto AI Trader</span>
-            <span className="text-xs bg-green-900/50 text-green-400 px-2 py-1 rounded border border-green-800">
-              PAPER TRADING
-            </span>
-            {is_paused && (
-              <span className="text-xs bg-yellow-900/50 text-yellow-400 px-2 py-1 rounded border border-yellow-800">
-                BOT PAUSADO
-              </span>
-            )}
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Day {day_count} · Cycle #{cycle_count} · Mode: <span className="text-white">{trading_config?.mode || 'balanced'}</span> · Data: CoinGecko Live
-          </p>
-        </div>
+    <div style={{ maxWidth: '1900px', margin: '0 auto', padding: '1rem 1.25rem' }}>
+
+      {/* ── Header ─────────────────────────────────────────── */}
+      <header className="flex items-center justify-between mb-5 pb-4"
+              style={{ borderBottom: '1px solid rgba(56,189,248,0.1)' }}>
         <div className="flex items-center gap-4">
-          <StatusDot connected={connected} />
+          <div className="flex items-center gap-3">
+            <span className="text-2xl" style={{ filter: 'drop-shadow(0 0 12px rgba(56,189,248,0.5))' }}>🤖</span>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight text-white">Crypto AI Trader</h1>
+              <p className="section-label">Day {day_count} · Cycle #{cycle_count} · CoinGecko Live</p>
+            </div>
+          </div>
+          <div className="h-8 w-px" style={{ background: 'var(--border)' }} />
+          {/* Inline PnL in header */}
+          <div>
+            <div className={`text-xl font-bold font-mono ${isPos ? 'text-gradient-green' : 'text-gradient-red'}`}>
+              ${(portfolio?.total_value || 50).toFixed(2)}
+            </div>
+            <div className={`text-xs font-mono ${isPos ? 'text-green-400' : 'text-red-400'}`}>
+              {isPos ? '▲' : '▼'} {Math.abs(pnlPct).toFixed(2)}% from $50
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Mode badge */}
+          <div className="px-3 py-1 rounded-full text-xs font-bold tracking-widest"
+               style={{ background: `${modeColors[mode]}15`, color: modeColors[mode],
+                        border: `1px solid ${modeColors[mode]}30` }}>
+            {mode.toUpperCase()}
+          </div>
+          {is_paused && (
+            <div className="px-3 py-1 rounded-full text-xs font-bold tracking-widest"
+                 style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24',
+                          border: '1px solid rgba(251,191,36,0.3)' }}>
+              PAUSED
+            </div>
+          )}
+          <div className="px-3 py-1 rounded-full text-xs font-bold tracking-widest"
+               style={{ background: 'rgba(56,189,248,0.08)', color: '#38bdf8',
+                        border: '1px solid rgba(56,189,248,0.2)' }}>
+            PAPER TRADING
+          </div>
+          <LiveBadge connected={connected} />
           {lastUpdate && (
-            <span className="text-gray-600 text-xs">
+            <span className="font-mono text-xs" style={{ color: 'var(--muted)' }}>
               {lastUpdate.toLocaleTimeString()}
             </span>
           )}
-          <button
-            onClick={onReset}
-            className="px-3 py-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded text-gray-400"
-          >
-            Reset ($50)
+          <button onClick={onReset}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg transition-all"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                           color: 'var(--muted)' }}
+                  onMouseOver={e => e.currentTarget.style.borderColor='rgba(255,255,255,0.15)'}
+                  onMouseOut={e => e.currentTarget.style.borderColor='rgba(255,255,255,0.08)'}>
+            Reset $50
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Portfolio Cards */}
+      {/* ── Portfolio metrics strip ─────────────────────────── */}
       <PortfolioCard portfolio={portfolio} />
 
-      {/* Main Grid */}
+      {/* ── Main grid ──────────────────────────────────────── */}
       <div className="grid grid-cols-12 gap-4 mt-4">
 
-        {/* Performance Chart */}
         <div className="col-span-12 lg:col-span-8">
           <PerformanceChart history={portfolio?.portfolio_history || []} />
         </div>
-
-        {/* Agent Log */}
         <div className="col-span-12 lg:col-span-4">
           <AgentLog logs={agent_log || []} />
         </div>
 
-        {/* Market Signals */}
         <div className="col-span-12 lg:col-span-7">
-          <PriceTable
-            signals={signals || []}
-            positions={portfolio?.positions || {}}
-          />
+          <PriceTable signals={signals || []} positions={portfolio?.positions || {}} />
         </div>
-
-        {/* Trade History */}
         <div className="col-span-12 lg:col-span-5">
           <TradeHistory trades={portfolio?.trades || []} />
         </div>
 
-        {/* Agents Status Panel */}
         <div className="col-span-12">
           <AgentsPanel agents={agents} />
         </div>
 
-        {/* Chat with ARIA */}
         <div className="col-span-12">
           <ChatPanel state={state} />
         </div>
