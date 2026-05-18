@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Crypto AI Trader — Documentación del Sistema</title>
+<style>
+  :root {
+    --bg: #030712; --bg2: #0f172a; --bg3: #1e293b;
+    --border: #334155; --green: #00ff88; --blue: #38bdf8;
+    --purple: #a78bfa; --yellow: #fbbf24; --red: #f87171;
+    --pink: #f472b6; --text: #f1f5f9; --muted: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; }
+  a { color: var(--blue); text-decoration: none; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* Hero */
+  .hero { text-align: center; padding: 4rem 1rem 3rem; background: radial-gradient(ellipse at 50% 0%, #0f2027 0%, var(--bg) 70%); border-bottom: 1px solid var(--border); }
+  .hero-badge { display: inline-block; background: rgba(0,255,136,.1); color: var(--green); border: 1px solid rgba(0,255,136,.3); border-radius: 999px; padding: .25rem 1rem; font-size: .8rem; font-weight: 600; letter-spacing: .05em; margin-bottom: 1rem; }
+  .hero h1 { font-size: 3rem; font-weight: 800; background: linear-gradient(135deg, #fff 30%, var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: .5rem; }
+  .hero p { color: var(--muted); font-size: 1.1rem; max-width: 600px; margin: 0 auto 2rem; }
+  .hero-stats { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; }
+  .stat { text-align: center; }
+  .stat-value { font-size: 2rem; font-weight: 700; color: var(--green); }
+  .stat-label { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+
+  /* Sections */
+  section { padding: 3rem 0; border-bottom: 1px solid var(--border); }
+  h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; align-items: center; gap: .5rem; }
+  h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: .75rem; }
+
+  /* Cards grid */
+  .grid { display: grid; gap: 1rem; }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 1rem; padding: 1.25rem; transition: border-color .2s; }
+  .card:hover { border-color: var(--blue); }
+  .card-icon { font-size: 2rem; margin-bottom: .75rem; }
+  .card-title { font-weight: 700; margin-bottom: .25rem; }
+  .card-desc { color: var(--muted); font-size: .9rem; }
+  .tag { display: inline-block; padding: .15rem .6rem; border-radius: 999px; font-size: .7rem; font-weight: 600; margin-top: .5rem; }
+
+  /* Agent status dot */
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+  .dot-green  { background: var(--green); }
+  .dot-blue   { background: var(--blue); }
+  .dot-purple { background: var(--purple); }
+  .dot-yellow { background: var(--yellow); }
+  .dot-pink   { background: var(--pink); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* Architecture diagram */
+  .arch { background: var(--bg2); border: 1px solid var(--border); border-radius: 1rem; padding: 2rem; }
+  .arch-flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: .75rem; margin: 1.5rem 0; }
+  .arch-box { background: var(--bg3); border: 1px solid var(--border); border-radius: .5rem; padding: .6rem 1rem; font-size: .85rem; font-weight: 600; text-align: center; min-width: 120px; }
+  .arch-arrow { color: var(--muted); font-size: 1.2rem; }
+  .arch-box.highlight { border-color: var(--green); color: var(--green); }
+
+  /* Strategy table */
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th { text-align: left; padding: .75rem 1rem; background: var(--bg3); color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; }
+  td { padding: .75rem 1rem; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: var(--bg2); }
+
+  /* API endpoints */
+  .endpoint { display: flex; align-items: center; gap: .75rem; padding: .6rem 1rem; border-radius: .5rem; background: var(--bg3); margin-bottom: .5rem; font-family: monospace; font-size: .85rem; }
+  .method { padding: .2rem .5rem; border-radius: .25rem; font-weight: 700; font-size: .75rem; }
+  .GET    { background: rgba(56,189,248,.2); color: var(--blue); }
+  .POST   { background: rgba(0,255,136,.2); color: var(--green); }
+  .WS     { background: rgba(167,139,250,.2); color: var(--purple); }
+
+  /* Changelog */
+  .cl-version { background: var(--bg2); border-left: 3px solid var(--green); border-radius: 0 .5rem .5rem 0; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .cl-version h3 { color: var(--green); font-family: monospace; margin-bottom: .5rem; }
+  .cl-version ul { color: var(--muted); font-size: .9rem; padding-left: 1.25rem; }
+  .cl-version ul li { margin-bottom: .2rem; }
+
+  /* Footer */
+  footer { text-align: center; padding: 2rem; color: var(--muted); font-size: .85rem; }
+  .version-badge { display: inline-block; background: var(--bg3); border: 1px solid var(--border); border-radius: .5rem; padding: .3rem .75rem; font-family: monospace; font-size: .8rem; }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">🤖 PAPER TRADING · DATOS REALES</div>
+  <h1>Crypto AI Trader</h1>
+  <p>Sistema autónomo de trading de criptomonedas con 5 agentes IA, datos en tiempo real y dashboard interactivo</p>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-value">$50</div><div class="stat-label">Capital inicial</div></div>
+    <div class="stat"><div class="stat-value">5</div><div class="stat-label">Agentes IA</div></div>
+    <div class="stat"><div class="stat-value">80+</div><div class="stat-label">Coins analizadas</div></div>
+    <div class="stat"><div class="stat-value">90s</div><div class="stat-label">Ciclo de trading</div></div>
+    <div class="stat"><div class="stat-value">0.1%</div><div class="stat-label">Comisión/trade</div></div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ARQUITECTURA -->
+<section>
+  <h2>🏗️ Arquitectura del Sistema</h2>
+  <div class="arch">
+    <h3>Flujo de datos y decisiones</h3>
+    <div class="arch-flow">
+      <div class="arch-box" style="border-color:#38bdf8;color:#38bdf8">📡 CoinGecko API<br><small style="color:#64748b">Gratis · Sin key</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box highlight">PriceFetcher<br><small>80 coins · 90s</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="border-color:#a78bfa;color:#a78bfa">TechnicalAnalyst<br><small>RSI·MACD·BB</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="border-color:#00ff88;color:#00ff88">TradingBot<br><small>BUY/SELL decisions</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="border-color:#fbbf24;color:#fbbf24">PortfolioManager<br><small>SL/TP · fees</small></div>
+    </div>
+    <div class="arch-flow">
+      <div class="arch-box" style="border-color:#f472b6;color:#f472b6">💬 ARIA (Claude Haiku)<br><small>Chat · Web search</small></div>
+      <div class="arch-arrow">⟷</div>
+      <div class="arch-box highlight">FastAPI Backend<br><small>WS · SSE · REST</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="border-color:#38bdf8;color:#38bdf8">React Dashboard<br><small>localhost:5173</small></div>
+    </div>
+    <p style="color:var(--muted);font-size:.85rem;margin-top:1rem;text-align:center">
+      Backend: Python 3.11 + FastAPI · Frontend: React 18 + Vite + TailwindCSS + Recharts
+    </p>
+  </div>
+</section>
+
+<!-- AGENTES -->
+<section>
+  <h2>🧠 Los 5 Agentes Autónomos</h2>
+  <div class="grid grid-3">
+    <div class="card">
+      <div class="card-icon">📡</div>
+      <div class="card-title">PriceFetcher <span class="dot dot-blue"></span></div>
+      <div class="card-desc">Obtiene precios en tiempo real de 80+ criptomonedas desde CoinGecko. Rate limiting automático, caché y retry. Sin API key requerida.</div>
+      <span class="tag" style="background:rgba(56,189,248,.15);color:#38bdf8">Data Collector · Ciclo: 90s</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">📊</div>
+      <div class="card-title">TechnicalAnalyst <span class="dot dot-purple"></span></div>
+      <div class="card-desc">Calcula RSI (14 periodos), MACD (12/26/9), Bollinger Bands (20), detección de volume spikes y momentum 1h/24h/7d. Genera señales de 0-100.</div>
+      <span class="tag" style="background:rgba(167,139,250,.15);color:#a78bfa">Market Analyzer · Ciclo: 90s</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🤖</div>
+      <div class="card-title">TradingBot <span class="dot dot-green"></span></div>
+      <div class="card-desc">Toma decisiones de compra/venta usando consenso multi-señal. Sizing Kelly-inspired. Soporta modos conservative/balanced/aggressive configurables en tiempo real.</div>
+      <span class="tag" style="background:rgba(0,255,136,.15);color:#00ff88">Decision Maker · Configurable</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">💼</div>
+      <div class="card-title">PortfolioManager <span class="dot dot-yellow"></span></div>
+      <div class="card-desc">Gestión de posiciones con stop-loss y take-profit automáticos. Simula comisiones 0.1% + slippage 0.05% por operación. Historial completo de trades.</div>
+      <span class="tag" style="background:rgba(251,191,36,.15);color:#fbbf24">Risk Manager · Siempre activo</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">💬</div>
+      <div class="card-title">ARIA <span class="dot dot-pink"></span></div>
+      <div class="card-desc">Agente IA conversacional (Claude Haiku). Responde preguntas en español, ajusta parámetros del bot, fuerza ventas, busca noticias en internet. Streaming SSE.</div>
+      <span class="tag" style="background:rgba(244,114,182,.15);color:#f472b6">AI Analyst · On-demand</span>
+    </div>
+  </div>
+</section>
+
+<!-- ESTRATEGIAS -->
+<section>
+  <h2>📈 Estrategias de Trading</h2>
+  <table>
+    <thead>
+      <tr><th>Estrategia</th><th>Condición de entrada</th><th>Stop Loss</th><th>Take Profit</th><th>Perfil</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>RSI_OVERSOLD</strong></td>
+        <td>RSI &lt; 30 (zona de sobreventa extrema)</td>
+        <td>5%</td><td>25%</td>
+        <td><span class="tag" style="background:rgba(0,255,136,.15);color:#00ff88">STRONG_BUY</span></td>
+      </tr>
+      <tr>
+        <td><strong>MACD_CROSSOVER</strong></td>
+        <td>MACD cruza por encima de la señal (momentum alcista)</td>
+        <td>7%</td><td>20%</td>
+        <td><span class="tag" style="background:rgba(56,189,248,.15);color:#38bdf8">BUY</span></td>
+      </tr>
+      <tr>
+        <td><strong>VOLUME_BREAKOUT</strong></td>
+        <td>Volumen &gt; 2.5x media + precio subiendo (posible +300%)</td>
+        <td>7%</td><td>20%</td>
+        <td><span class="tag" style="background:rgba(251,191,36,.15);color:#fbbf24">BUY</span></td>
+      </tr>
+      <tr>
+        <td><strong>MOMENTUM</strong></td>
+        <td>Momentum 7d &gt; 30% + 24h &gt; 10% (tendencia fuerte)</td>
+        <td>7%</td><td>20%</td>
+        <td><span class="tag" style="background:rgba(167,139,250,.15);color:#a78bfa">BUY</span></td>
+      </tr>
+      <tr>
+        <td><strong>COMPOSITE</strong></td>
+        <td>Consenso de múltiples señales (fuerza &gt; 62/100)</td>
+        <td>7%</td><td>15%</td>
+        <td><span class="tag" style="background:rgba(100,116,139,.15);color:#94a3b8">HOLD/BUY</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top:1.5rem;">
+    <h3>Modos de riesgo configurables</h3>
+    <div class="grid grid-3" style="margin-top:.75rem;">
+      <div class="card" style="border-color:rgba(56,189,248,.4)">
+        <div style="color:#38bdf8;font-weight:700;margin-bottom:.5rem">🛡️ Conservative</div>
+        <ul style="color:var(--muted);font-size:.85rem;padding-left:1.2rem">
+          <li>Señal mínima: 72/100</li>
+          <li>Posición máx: 20% del portfolio</li>
+          <li>Máx 3 posiciones</li>
+          <li>SL: 5% · TP: 15%</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:rgba(251,191,36,.4)">
+        <div style="color:#fbbf24;font-weight:700;margin-bottom:.5rem">⚖️ Balanced (default)</div>
+        <ul style="color:var(--muted);font-size:.85rem;padding-left:1.2rem">
+          <li>Señal mínima: 62/100</li>
+          <li>Posición máx: 30% del portfolio</li>
+          <li>Máx 5 posiciones</li>
+          <li>SL: 7% · TP: 20%</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:rgba(248,113,113,.4)">
+        <div style="color:#f87171;font-weight:700;margin-bottom:.5rem">🔥 Aggressive</div>
+        <ul style="color:var(--muted);font-size:.85rem;padding-left:1.2rem">
+          <li>Señal mínima: 52/100</li>
+          <li>Posición máx: 40% del portfolio</li>
+          <li>Máx 7 posiciones</li>
+          <li>SL: 10% · TP: 35%</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section>
+  <h2>🖥️ Dashboard — Componentes</h2>
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="card-icon">💰</div>
+      <div class="card-title">PortfolioCard</div>
+      <div class="card-desc">6 métricas: valor total, P&amp;L, efectivo disponible, posiciones abiertas, total trades, fees pagados. Barra de progreso del capital. Badges de posiciones activas con PnL %.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">📉</div>
+      <div class="card-title">PerformanceChart</div>
+      <div class="card-desc">Gráfico de área en tiempo real (Recharts). Línea de referencia en $50. Tooltip con valor, P&amp;L y porcentaje. Cambia de color verde/rojo según rendimiento.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔍</div>
+      <div class="card-title">PriceTable</div>
+      <div class="card-desc">Tabla de 15 criptomonedas con señales prioritizadas. Muestra precio, señal (badge de color), RSI, momentum 1h/24h/7d y primera razón del análisis.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">📋</div>
+      <div class="card-title">TradeHistory</div>
+      <div class="card-desc">Historial scrollable de trades con iconos por tipo (compra, venta, stop loss, take profit). Muestra W/L count y P&amp;L realizado total.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🤖</div>
+      <div class="card-title">AgentLog</div>
+      <div class="card-desc">Feed en tiempo real de decisiones del TradingBot. Cada entrada muestra timestamp, icono por acción y mensaje descriptivo. Últimas 200 entradas.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🧠</div>
+      <div class="card-title">AgentsPanel</div>
+      <div class="card-desc">Cards visuales para los 5 agentes del sistema. Indicador de estado (activo/pausado/en espera) con dot animado. Estadísticas live de cada agente.</div>
+    </div>
+    <div class="card" style="grid-column:1/-1;border-color:rgba(244,114,182,.4)">
+      <div class="card-icon">💬</div>
+      <div class="card-title">ChatPanel — ARIA</div>
+      <div class="card-desc">Interfaz de chat con streaming SSE. Bubbles usuario (azul derecha) vs ARIA (gris izquierda). Tool calls expandibles para ver qué herramientas usa. Quick actions: 6 acciones de un clic. Botones de modo (conservative/balanced/aggressive) en el header del chat.</div>
+    </div>
+  </div>
+</section>
+
+<!-- API -->
+<section>
+  <h2>🔌 API Endpoints</h2>
+  <div class="grid grid-2">
+    <div>
+      <h3 style="color:var(--muted);font-size:.85rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem">WebSocket</h3>
+      <div class="endpoint"><span class="method WS">WS</span> /ws — Estado completo en tiempo real (cada 90s)</div>
+      <h3 style="color:var(--muted);font-size:.85rem;text-transform:uppercase;letter-spacing:.05em;margin:.75rem 0">GET</h3>
+      <div class="endpoint"><span class="method GET">GET</span> /api/state — Estado completo (portfolio + señales + agentes)</div>
+      <div class="endpoint"><span class="method GET">GET</span> /api/portfolio — Solo datos del portfolio</div>
+      <div class="endpoint"><span class="method GET">GET</span> /api/agents — Estado de todos los agentes</div>
+      <div class="endpoint"><span class="method GET">GET</span> /health — Health check del servidor</div>
+    </div>
+    <div>
+      <h3 style="color:var(--muted);font-size:.85rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem">POST</h3>
+      <div class="endpoint"><span class="method POST">POST</span> /api/chat — Chat con ARIA (SSE streaming)</div>
+      <div class="endpoint"><span class="method POST">POST</span> /api/reset — Reset portfolio a $50</div>
+    </div>
+  </div>
+</section>
+
+<!-- INICIO RÁPIDO -->
+<section>
+  <h2>🚀 Inicio Rápido</h2>
+  <div class="arch">
+    <pre style="color:var(--green);font-family:monospace;font-size:.9rem;line-height:1.8">
+<span style="color:var(--muted)"># 1. Clonar y navegar al directorio</span>
+cd crypto-trading-simulator
+
+<span style="color:var(--muted)"># 2. (Opcional) Configurar API key de Anthropic para ARIA</span>
+export ANTHROPIC_API_KEY=sk-ant-...
+
+<span style="color:var(--muted)"># 3. Arrancar todo con un solo comando</span>
+./start.sh
+
+<span style="color:var(--muted)"># 4. Abrir el dashboard en el navegador</span>
+open http://localhost:5173
+    </pre>
+  </div>
+</section>
+
+<!-- CHANGELOG -->
+<section>
+  <h2>📝 Changelog</h2>
+  <div class="cl-version">
+    <h3>[v1.2.0] — 2026-05-18 — Chat Agent + Agents Panel</h3>
+    <ul>
+      <li>Agente ARIA con Claude Haiku y 6 herramientas (portfolio, señales, ajuste de params, venta forzada, pausa, búsqueda web)</li>
+      <li>Panel de agentes con estado en tiempo real y estadísticas live</li>
+      <li>Config dinámica: modos conservative/balanced/aggressive ajustables desde el chat</li>
+      <li>Endpoint SSE /api/chat para streaming de respuestas del agente</li>
+    </ul>
+  </div>
+  <div class="cl-version">
+    <h3>[v1.1.0] — 2026-05-18 — Simulador Base Completo</h3>
+    <ul>
+      <li>Backend FastAPI con WebSocket + PriceFetcher + TechnicalAnalyzer + TradingBot + PortfolioManager</li>
+      <li>$50 capital inicial, 5 estrategias, stop-loss/take-profit automáticos, 0.1% comisiones</li>
+      <li>Dashboard React: PortfolioCard, PerformanceChart, PriceTable, TradeHistory, AgentLog</li>
+    </ul>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <div style="margin-bottom:.5rem">
+    <span class="version-badge">v1.2.0</span>
+  </div>
+  <p>Crypto AI Trader · Paper Trading · Datos reales via CoinGecko · Sin riesgo real</p>
+  <p style="margin-top:.5rem;color:#334155">Esta aplicación es solo para simulación. No invierte dinero real.</p>
+</footer>
+
+</body>
+</html>
