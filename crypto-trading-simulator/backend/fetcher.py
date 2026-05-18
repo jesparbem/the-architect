@@ -137,6 +137,53 @@ class PriceFetcher:
     def get_price_history(self, coin_id: str) -> List[float]:
         return self.price_history.get(coin_id, [])
 
+    async def fetch_historical_data(self, coin_id: str, symbol: str, days: int = 365) -> list:
+        """Fetch up to 365 days of daily price history (free CoinGecko tier)."""
+        data = await self._rate_limited_get(
+            f"{COINGECKO_BASE}/coins/{coin_id}/market_chart",
+            params={'vs_currency': 'usd', 'days': str(days)}
+        )
+        if not data or 'prices' not in data:
+            return []
+
+        prices_raw = data.get('prices', [])
+        volumes_raw = {p[0]: p[1] for p in data.get('total_volumes', [])}
+        mcaps_raw   = {p[0]: p[1] for p in data.get('market_caps', [])}
+
+        points = [
+            {
+                'ts':         ts_ms / 1000,
+                'price':      price,
+                'volume':     volumes_raw.get(ts_ms),
+                'market_cap': mcaps_raw.get(ts_ms),
+            }
+            for ts_ms, price in prices_raw
+        ]
+
+        # Seed in-memory history for the analyzer (last 200 daily points)
+        if points:
+            self.price_history[coin_id] = [p['price'] for p in points[-200:]]
+
+        return points
+
+    async def fetch_historical_bulk(self, coins: list, db, max_coins: int = 25) -> None:
+        """Fetch 365-day history for top coins and persist. Runs in background."""
+        for coin in coins[:max_coins]:
+            coin_id = coin.get('id')
+            symbol  = coin.get('symbol', '').upper()
+            if not coin_id:
+                continue
+            try:
+                if await db.has_historical_data(coin_id):
+                    continue
+                logger.info(f"Fetching 365-day history for {symbol}...")
+                points = await self.fetch_historical_data(coin_id, symbol, days=365)
+                if points:
+                    await db.save_historical_prices(coin_id, symbol, points)
+                    logger.info(f"Stored {len(points)} historical points for {symbol}")
+            except Exception as e:
+                logger.error(f"Historical fetch failed for {coin_id}: {e}")
+
     async def close(self):
         if self.session and not self.session.closed:
             await self.session.close()

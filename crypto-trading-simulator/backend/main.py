@@ -14,6 +14,7 @@ from trader import TradingAgent
 from portfolio import Portfolio
 from config import trading_config
 from chat_agent import chat_agent
+from database import db
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -145,12 +146,33 @@ def _get_agent_statuses() -> list:
     return statuses
 
 
+async def _fetch_historical_bg():
+    """Background task: fetch 365-day price history for top coins after first cycle."""
+    await asyncio.sleep(35)  # Wait for first market data to be available
+    if fetcher.all_coins:
+        logger.info("Starting background historical data fetch...")
+        await fetcher.fetch_historical_bulk(fetcher.all_coins, db, max_coins=25)
+        logger.info("Background historical data fetch complete")
+
+
 @app.on_event("startup")
 async def startup():
     global trading_task
     logger.info("Starting crypto trading simulator...")
+
+    # Initialize persistent database
+    await db.connect()
+    await db.new_session()
+
+    # Wire DB into portfolio and trading agent
+    portfolio.set_db(db)
+    agent.set_db(db)
+
     chat_agent.initialize(agent, portfolio, fetcher, trading_config)
     trading_task = asyncio.create_task(trading_loop())
+
+    # Kick off historical data fetch in background (non-blocking)
+    asyncio.create_task(_fetch_historical_bg())
 
 
 @app.on_event("shutdown")
@@ -158,6 +180,9 @@ async def shutdown():
     agent.is_running = False
     if trading_task:
         trading_task.cancel()
+    prices = fetcher.get_all_prices()
+    await db.end_session(portfolio.total_value(prices))
+    await db.close()
     await fetcher.close()
 
 
@@ -234,15 +259,78 @@ async def get_agents():
 @app.post("/api/reset")
 async def reset_portfolio():
     global portfolio, agent
+    # Close out current session
+    prices = fetcher.get_all_prices()
+    await db.end_session(portfolio.total_value(prices))
+
     portfolio = Portfolio()
+    portfolio.set_db(db)
     agent.portfolio = portfolio
     chat_agent._portfolio_ref = portfolio
     agent.cycle_count = 0
     agent.day_count = 1
+
+    # Open a fresh session for the new run
+    await db.new_session()
     agent._log("Portfolio reset to $50.00", action="RESET")
-    return JSONResponse({"status": "reset", "cash": 50.0})
+    return JSONResponse({"status": "reset", "cash": 50.0, "session_id": db.session_id})
+
+
+# ── History / stats endpoints ────────────────────────────────────────────────
+
+@app.get("/api/history/trades")
+async def history_trades(session_id: str = None, limit: int = 200):
+    trades = await db.get_all_trades(session_id=session_id, limit=limit)
+    return JSONResponse(trades)
+
+
+@app.get("/api/history/portfolio")
+async def history_portfolio(session_id: str = None, limit: int = 500):
+    history = await db.get_portfolio_history(session_id=session_id, limit=limit)
+    return JSONResponse(history)
+
+
+@app.get("/api/stats")
+async def stats(session_id: str = None):
+    s = await db.get_stats(session_id=session_id)
+    return JSONResponse(s)
+
+
+@app.get("/api/sessions")
+async def get_sessions():
+    s = await db.get_all_sessions()
+    return JSONResponse(s)
+
+
+@app.get("/api/history/prices/{coin_id}")
+async def history_prices(coin_id: str, limit: int = 100):
+    prices = await db.get_price_history(coin_id, session_id=db.session_id, limit=limit)
+    return JSONResponse(prices)
+
+
+@app.get("/api/historical/{coin_id}")
+async def historical_prices(coin_id: str, limit: int = 365):
+    prices = await db.get_historical_prices(coin_id, limit=limit)
+    return JSONResponse(prices)
+
+
+@app.get("/api/forecast/{coin_id}")
+async def forecast_coin(coin_id: str):
+    result = await db.get_forecast(coin_id)
+    if result is None:
+        return JSONResponse(
+            {"error": "Not enough historical data", "coin_id": coin_id},
+            status_code=404
+        )
+    return JSONResponse(result)
+
+
+@app.get("/api/logs")
+async def get_logs(session_id: str = None, limit: int = 200):
+    logs = await db.get_agent_logs(session_id=session_id, limit=limit)
+    return JSONResponse(logs)
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "cycle": agent.cycle_count}
+    return {"status": "ok", "cycle": agent.cycle_count, "session": db.session_id}

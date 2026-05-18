@@ -24,6 +24,10 @@ class TradingAgent:
         self.current_signals: List[Signal] = []
         self.market_data: List[dict] = []
         self.last_trade_time: Dict[str, float] = {}  # Cooldown per coin
+        self._db = None
+
+    def set_db(self, db):
+        self._db = db
 
     def _log(self, message: str, level: str = "INFO", action: str = None):
         entry = {
@@ -36,9 +40,12 @@ class TradingAgent:
         }
         self.agent_log.append(entry)
         logger.info(f"[Agent] {message}")
-        # Keep last 200 log entries
         if len(self.agent_log) > 200:
             self.agent_log = self.agent_log[-200:]
+        if self._db:
+            asyncio.create_task(self._db.save_log(
+                message, level=level, action=action, cycle=self.cycle_count
+            ))
 
     def _cooldown_ok(self, coin_id: str, cooldown_seconds: int = 300) -> bool:
         """Check if enough time has passed since last trade of this coin."""
@@ -146,7 +153,7 @@ class TradingAgent:
         ]
 
         for signal in buy_candidates[:3]:  # Max 3 new positions per cycle
-            if len(self.portfolio.positions) >= MAX_POSITIONS:
+            if len(self.portfolio.positions) >= trading_config.max_positions:
                 break
 
             portfolio_value = self.portfolio.total_value(prices)
@@ -207,9 +214,13 @@ class TradingAgent:
         try:
             # 1. Update market data
             await self._update_market_data()
+            if self._db and self.market_data:
+                asyncio.create_task(self._db.save_prices(self.market_data))
 
             # 2. Analyze market
             await self._analyze_market()
+            if self._db and self.current_signals:
+                asyncio.create_task(self._db.save_signals(self.current_signals))
 
             # 3. Get current prices
             prices = self.fetcher.get_all_prices()

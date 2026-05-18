@@ -1,8 +1,7 @@
+import asyncio
 import time
-import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional
-from datetime import datetime
 
 STARTING_CAPITAL = 50.0
 TRADE_FEE = 0.001  # 0.1% per trade (Binance standard)
@@ -59,6 +58,7 @@ class Trade:
 
 class Portfolio:
     def __init__(self):
+        self._db = None  # injected after DB init
         self.cash = STARTING_CAPITAL
         self.positions: Dict[str, Position] = {}
         self.trades: List[Trade] = []
@@ -71,16 +71,34 @@ class Portfolio:
         self._snapshot()
 
     def _snapshot(self, prices: dict = None):
-        total_value = self.total_value(prices or {})
+        prices = prices or {}
+        total_value = self.total_value(prices)
+        pnl = self.total_pnl(prices)
+        pnl_pct = self.total_pnl_pct(prices)
         self.portfolio_history.append({
             'timestamp': time.time(),
             'cash': self.cash,
             'total_value': total_value,
-            'positions_count': len(self.positions)
+            'positions_count': len(self.positions),
+            'pnl': pnl,
+            'pnl_pct': pnl_pct,
         })
-        # Keep last 1000 snapshots
         if len(self.portfolio_history) > 1000:
             self.portfolio_history = self.portfolio_history[-1000:]
+        if self._db:
+            try:
+                asyncio.create_task(self._db.save_snapshot(
+                    self.cash, total_value, len(self.positions), pnl, pnl_pct
+                ))
+            except RuntimeError:
+                pass  # No event loop during construction
+
+    def set_db(self, db):
+        self._db = db
+
+    def _persist_trade(self, trade):
+        if self._db:
+            asyncio.create_task(self._db.save_trade(trade.to_dict()))
 
     def total_value(self, prices: dict) -> float:
         positions_value = sum(
@@ -148,6 +166,7 @@ class Portfolio:
             strategy=strategy
         )
         self.trades.append(trade)
+        self._persist_trade(trade)
 
         return trade
 
@@ -188,6 +207,7 @@ class Portfolio:
             pnl=pnl
         )
         self.trades.append(trade)
+        self._persist_trade(trade)
 
         return trade
 
