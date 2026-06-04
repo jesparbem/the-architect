@@ -24,14 +24,12 @@ export class MenuScreen implements Screen {
     this.showScores = false;
     this.lastFireTaps = touchControls.fireTaps;
     window.addEventListener('keydown', this.onKey);
-    if (touchControls.active) {
-      this.game.canvas.addEventListener('touchstart', this.onCanvasTouch, { passive: false });
-    }
+    window.addEventListener('touchstart', this.onAnyTouch);
   }
 
   onExit(): void {
     window.removeEventListener('keydown', this.onKey);
-    this.game.canvas.removeEventListener('touchstart', this.onCanvasTouch);
+    window.removeEventListener('touchstart', this.onAnyTouch);
   }
 
   private onKey = (e: KeyboardEvent): void => {
@@ -49,8 +47,7 @@ export class MenuScreen implements Screen {
     }
   };
 
-  private onCanvasTouch = (e: TouchEvent): void => {
-    e.preventDefault();
+  private onAnyTouch = (): void => {
     if (this.showScores) {
       this.showScores = false;
     } else {
