@@ -14,6 +14,7 @@ import { Bullet } from '../entities/Bullet';
 import { Barrier } from '../entities/Barrier';
 import { PowerUp } from '../entities/PowerUp';
 import { ParticleSystem } from '../effects/ParticleSystem';
+import { touchControls } from '../input/TouchControls';
 import type { PowerUpKind } from '../types';
 
 const POWERUP_KINDS: PowerUpKind[] = ['rapidfire', 'doubleshot', 'shield'];
@@ -201,12 +202,12 @@ export class GameScreen implements Screen {
 
   private handleInput(dt: number): void {
     const p = this.player;
-    const left = this.keys.has('ArrowLeft') || this.keys.has('a') || this.keys.has('A');
-    const right = this.keys.has('ArrowRight') || this.keys.has('d') || this.keys.has('D');
+    const left = this.keys.has('ArrowLeft') || this.keys.has('a') || this.keys.has('A') || touchControls.left;
+    const right = this.keys.has('ArrowRight') || this.keys.has('d') || this.keys.has('D') || touchControls.right;
     if (left) p.x = Math.max(p.halfW + 2, p.x - PLAYER_SPEED * dt);
     if (right) p.x = Math.min(W - p.halfW - 2, p.x + PLAYER_SPEED * dt);
 
-    const shoot = this.keys.has(' ') || this.keys.has('ArrowUp');
+    const shoot = this.keys.has(' ') || this.keys.has('ArrowUp') || touchControls.fire;
     if (shoot && p.shootCooldown <= 0) {
       p.shootCooldown = p.shootCooldownMax;
       this.playerBullets.push(new Bullet(p.x, p.y - 20, -BULLET_SPEED, true));

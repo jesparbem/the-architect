@@ -1,10 +1,12 @@
 import type { Screen } from './Screen';
 import type { Game } from '../Game';
 import { W, H } from '../constants';
+import { touchControls } from '../input/TouchControls';
 
 export class MenuScreen implements Screen {
   private blink = 0;
   private showScores = false;
+  private lastFireTaps = 0;
   private stars: Array<{ x: number; y: number; size: number; speed: number }> = [];
 
   constructor(private game: Game) {
@@ -20,11 +22,16 @@ export class MenuScreen implements Screen {
 
   onEnter(): void {
     this.showScores = false;
+    this.lastFireTaps = touchControls.fireTaps;
     window.addEventListener('keydown', this.onKey);
+    if (touchControls.active) {
+      this.game.canvas.addEventListener('touchstart', this.onCanvasTouch, { passive: false });
+    }
   }
 
   onExit(): void {
     window.removeEventListener('keydown', this.onKey);
+    this.game.canvas.removeEventListener('touchstart', this.onCanvasTouch);
   }
 
   private onKey = (e: KeyboardEvent): void => {
@@ -42,11 +49,31 @@ export class MenuScreen implements Screen {
     }
   };
 
+  private onCanvasTouch = (e: TouchEvent): void => {
+    e.preventDefault();
+    if (this.showScores) {
+      this.showScores = false;
+    } else {
+      this.game.audio.resume();
+      this.game.goto('game');
+    }
+  };
+
   update(dt: number): void {
     this.blink += dt;
     for (const s of this.stars) {
       s.y += s.speed * dt;
       if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
+    }
+    // FIRE button as "start / continue"
+    if (touchControls.fireTaps > this.lastFireTaps) {
+      this.lastFireTaps = touchControls.fireTaps;
+      if (this.showScores) {
+        this.showScores = false;
+      } else {
+        this.game.audio.resume();
+        this.game.goto('game');
+      }
     }
   }
 
@@ -68,7 +95,6 @@ export class MenuScreen implements Screen {
     ctx.save();
     ctx.textAlign = 'center';
 
-    // Title glow
     ctx.shadowColor = '#ff00ff';
     ctx.shadowBlur = 40;
     ctx.fillStyle = '#ff00ff';
@@ -82,31 +108,34 @@ export class MenuScreen implements Screen {
     ctx.font = '22px monospace';
     ctx.fillText('— NEON EDITION —', W / 2, 308);
 
-    // Blinking start prompt
     if (Math.sin(this.blink * 3) > 0) {
       ctx.shadowColor = '#00ff88';
       ctx.shadowBlur = 16;
       ctx.fillStyle = '#00ff88';
       ctx.font = '22px monospace';
-      ctx.fillText('PRESS SPACE TO START', W / 2, 390);
+      const prompt = touchControls.active ? 'TAP TO START' : 'PRESS SPACE TO START';
+      ctx.fillText(prompt, W / 2, 390);
     }
 
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#666';
     ctx.font = '15px monospace';
-    ctx.fillText('H — HIGH SCORES', W / 2, 440);
-    ctx.fillText('← → MOVE   SPACE FIRE   P PAUSE', W / 2, 465);
+    if (touchControls.active) {
+      ctx.fillText('◀ ▶ MOVE   FIRE SHOOT   ⏸ PAUSE', W / 2, 450);
+    } else {
+      ctx.fillText('H — HIGH SCORES', W / 2, 440);
+      ctx.fillText('← → MOVE   SPACE FIRE   P PAUSE', W / 2, 465);
+    }
 
-    // Invader score table
-    const entries: [string, string, number][] = [
-      ['#ff0088', '??? PTS', 36],
-      ['#ff00ff', ' 30 PTS', 42],
-      ['#00e5ff', ' 20 PTS', 42],
-      ['#00ff88', ' 10 PTS', 42],
+    // Score table
+    const entries: [string, string][] = [
+      ['#ff0088', '??? PTS (UFO)'],
+      ['#ff00ff', ' 30 PTS'],
+      ['#00e5ff', ' 20 PTS'],
+      ['#00ff88', ' 10 PTS'],
     ];
-    const labels = ['UFO', 'TOP', 'MID', 'BOT'];
-    entries.forEach(([c, pts, _w], i) => {
-      const y = 510 + i * 32;
+    entries.forEach(([c, pts], i) => {
+      const y = 505 + i * 32;
       ctx.fillStyle = c;
       ctx.shadowColor = c;
       ctx.shadowBlur = 8;
@@ -115,7 +144,7 @@ export class MenuScreen implements Screen {
       ctx.fillStyle = '#aaa';
       ctx.font = '15px monospace';
       ctx.textAlign = 'left';
-      ctx.fillText(`= ${pts}  (${labels[i]})`, W / 2 - 98, y + 3);
+      ctx.fillText(`= ${pts}`, W / 2 - 98, y + 3);
     });
 
     ctx.restore();
@@ -155,7 +184,8 @@ export class MenuScreen implements Screen {
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#555';
     ctx.font = '16px monospace';
-    ctx.fillText('PRESS SPACE TO RETURN', W / 2, 570);
+    const backPrompt = touchControls.active ? 'TAP FIRE TO RETURN' : 'PRESS SPACE TO RETURN';
+    ctx.fillText(backPrompt, W / 2, 570);
     ctx.restore();
   }
 }

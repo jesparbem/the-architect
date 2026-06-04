@@ -1,6 +1,7 @@
 import type { Screen } from './Screen';
 import type { Game } from '../Game';
 import { W, H } from '../constants';
+import { touchControls } from '../input/TouchControls';
 
 export class GameOverScreen implements Screen {
   private score = 0;
@@ -9,6 +10,7 @@ export class GameOverScreen implements Screen {
   private saved = false;
   private done = false;
   private blink = 0;
+  private lastFireTaps = 0;
 
   constructor(private game: Game) {}
 
@@ -22,11 +24,21 @@ export class GameOverScreen implements Screen {
 
   onEnter(): void {
     this.game.audio.playGameOver();
+    this.lastFireTaps = touchControls.fireTaps;
     window.addEventListener('keydown', this.onKey);
   }
 
   onExit(): void {
     window.removeEventListener('keydown', this.onKey);
+  }
+
+  private confirm(): void {
+    const trimmed = this.name.trim() || 'ACE';
+    if (!this.saved) {
+      this.game.addScore({ name: trimmed.slice(0, 10), score: this.score, wave: this.wave });
+      this.saved = true;
+    }
+    this.done = true;
   }
 
   private onKey = (e: KeyboardEvent): void => {
@@ -38,16 +50,7 @@ export class GameOverScreen implements Screen {
       return;
     }
 
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const trimmed = this.name.trim() || 'ACE';
-      if (!this.saved) {
-        this.game.addScore({ name: trimmed.slice(0, 10), score: this.score, wave: this.wave });
-        this.saved = true;
-      }
-      this.done = true;
-      return;
-    }
+    if (e.key === 'Enter') { e.preventDefault(); this.confirm(); return; }
 
     if (e.key === 'Backspace') {
       e.preventDefault();
@@ -62,6 +65,16 @@ export class GameOverScreen implements Screen {
 
   update(dt: number): void {
     this.blink += dt;
+
+    // Touch: FIRE button as confirm / continue
+    if (touchControls.fireTaps > this.lastFireTaps) {
+      this.lastFireTaps = touchControls.fireTaps;
+      if (this.done) {
+        this.game.goto('menu');
+      } else {
+        this.confirm();
+      }
+    }
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
@@ -82,23 +95,32 @@ export class GameOverScreen implements Screen {
     ctx.fillText(`WAVE   ${this.wave}`, W / 2, 262);
 
     if (!this.done) {
-      ctx.shadowColor = '#ffff00';
-      ctx.shadowBlur = 12;
-      ctx.fillStyle = '#ffff00';
-      ctx.font = '20px monospace';
-      ctx.fillText('ENTER YOUR NAME:', W / 2, 335);
+      if (touchControls.active) {
+        // On mobile: skip name entry, show score and a tap-to-save prompt
+        ctx.shadowColor = '#ffff00';
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = '#ffff00';
+        ctx.font = '20px monospace';
+        ctx.fillText('PRESS FIRE TO SAVE & CONTINUE', W / 2, 380);
+      } else {
+        ctx.shadowColor = '#ffff00';
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = '#ffff00';
+        ctx.font = '20px monospace';
+        ctx.fillText('ENTER YOUR NAME:', W / 2, 335);
 
-      const cursor = Math.sin(this.blink * 5) > 0 ? '_' : ' ';
-      ctx.shadowColor = '#fff';
-      ctx.shadowBlur = 14;
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 34px monospace';
-      ctx.fillText(this.name + cursor, W / 2, 390);
+        const cursor = Math.sin(this.blink * 5) > 0 ? '_' : ' ';
+        ctx.shadowColor = '#fff';
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 34px monospace';
+        ctx.fillText(this.name + cursor, W / 2, 390);
 
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#555';
-      ctx.font = '15px monospace';
-      ctx.fillText('PRESS ENTER TO CONFIRM', W / 2, 440);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#555';
+        ctx.font = '15px monospace';
+        ctx.fillText('PRESS ENTER TO CONFIRM', W / 2, 440);
+      }
     } else {
       ctx.shadowColor = '#00ff88';
       ctx.shadowBlur = 16;
@@ -111,7 +133,8 @@ export class GameOverScreen implements Screen {
         ctx.shadowBlur = 10;
         ctx.fillStyle = '#fff';
         ctx.font = '20px monospace';
-        ctx.fillText('PRESS SPACE TO CONTINUE', W / 2, 430);
+        const cont = touchControls.active ? 'TAP FIRE TO CONTINUE' : 'PRESS SPACE TO CONTINUE';
+        ctx.fillText(cont, W / 2, 430);
       }
     }
 
