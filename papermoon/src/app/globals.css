@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+/* ---- PaperMoon design tokens (dark-first financial terminal) ---- */
+@theme {
+  --color-background: #0a0b0d;
+  --color-surface: #131722;
+  --color-surface-2: #1c2230;
+  --color-border: #2a2f3a;
+  --color-primary: #5b8def;
+  --color-primary-fg: #ffffff;
+  --color-up: #16c784;
+  --color-down: #ea3943;
+  --color-warning: #f0a020;
+  --color-text: #eaecef;
+  --color-muted: #848e9c;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  --radius: 0.5rem;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  html,
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+  }
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  * {
+    border-color: var(--color-border);
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  }
+  /* Subtle scrollbars for the dark terminal look */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-surface-2);
+    border-radius: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* Tabular figures for all numeric displays so columns don't jitter live. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+/* Price flash animation on tick change. */
+@keyframes flash-up {
+  0% { background-color: color-mix(in srgb, var(--color-up) 35%, transparent); }
+  100% { background-color: transparent; }
+}
+@keyframes flash-down {
+  0% { background-color: color-mix(in srgb, var(--color-down) 35%, transparent); }
+  100% { background-color: transparent; }
+}
+.flash-up {
+  animation: flash-up 0.5s ease-out;
+}
+.flash-down {
+  animation: flash-down 0.5s ease-out;
+}
